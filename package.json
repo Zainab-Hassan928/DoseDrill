@@ -1,0 +1,6 @@
+{
+  "name": "dosedrill",
+  "version": "1.0.0",
+  "description": "AI-powered drug dosing practice tool for medical students",
+  "private": true
+}
