@@ -348,4 +348,131 @@
           </div>
         `;
       });
+   container.innerHTML = html;
+  }
+
+  function resetProgress() {
+    if (confirm("This will permanently clear your saved progress on this device. Continue?")) {
+      localStorage.removeItem(HISTORY_KEY);
+      initScoreFromHistory();
+      renderStats();
+    }
+  }
+
+  // Load saved score/total as soon as the page opens
+  initScoreFromHistory();
+
+  // ---- Question flow ----
+
+  async function generateQuestion() {
+    const drug = document.getElementById("drug").value.trim();
+    const age = document.getElementById("age").value.trim();
+    const weight = document.getElementById("weight").value.trim();
+    const condition = document.getElementById("condition").value.trim();
+    const category = document.getElementById("category").value;
+    const difficulty = document.getElementById("difficulty").value;
+    const trapMode = document.getElementById("trapMode").checked;
+
+    if (!drug || !age || !weight || !condition) {
+      alert("Please fill in drug, age, weight, and condition — condition matters a lot for dosing!");
+      return;
+    }
+
+    currentDrug = drug;
+    currentCategory = category;
+    currentDifficulty = difficulty;
+    currentTrapMode = trapMode;
+
+    const btn = document.getElementById("generateBtn");
+    btn.disabled = true;
+    btn.textContent = "Generating...";
+
+    try {
+      const res = await fetch("/api/dosedrill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "generate", drug, age, weight, condition, category, difficulty, trapMode }),
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+
+      currentQuestion = data.result;
+      document.getElementById("questionText").textContent = data.result;
+      document.getElementById("questionCard").classList.remove("hidden");
+      document.getElementById("trapBadge").classList.toggle("hidden", !trapMode);
+      document.getElementById("resultBox").innerHTML = "";
+      document.getElementById("answer").value = "";
+      document.getElementById("tryAnotherBtn").classList.add("hidden");
+      document.getElementById("checkBtn").classList.remove("hidden");
+    } catch (err) {
+      alert("Something went wrong. Please try again.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Generate Question";
+    }
+  }
+
+  async function checkAnswer() {
+    const studentAnswer = document.getElementById("answer").value.trim();
+    if (!studentAnswer) {
+      alert("Please type your answer first.");
+      return;
+    }
+
+    const btn = document.getElementById("checkBtn");
+    btn.disabled = true;
+    btn.textContent = "Checking...";
+
+    try {
+      const res = await fetch("/api/dosedrill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "check", question: currentQuestion, studentAnswer, trapMode: currentTrapMode }),
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+
+      const isCorrect = data.result.trim().toUpperCase().startsWith("CORRECT");
+
+      saveAttempt({
+        drug: currentDrug,
+        category: currentCategory,
+        correct: isCorrect,
+        date: new Date().toISOString(),
+      });
+      initScoreFromHistory();
+
+      const resultBox = document.getElementById("resultBox");
+      resultBox.className = "result-box " + (isCorrect ? "result-correct" : "result-incorrect");
+      resultBox.textContent = data.result;
+
+      document.getElementById("tryAnotherBtn").classList.remove("hidden");
+      btn.classList.add("hidden");
+    } catch (err) {
+      alert("Something went wrong. Please try again.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Check Answer";
+    }
+  }
+
+  function resetForNewQuestion() {
+    document.getElementById("questionCard").classList.add("hidden");
+    document.getElementById("drug").value = "";
+    document.getElementById("age").value = "";
+    document.getElementById("weight").value = "";
+    document.getElementById("condition").value = "";
+    document.getElementById("checkBtn").classList.remove("hidden");
+  }
+</script>
+</body>
+</html>
 
