@@ -107,6 +107,83 @@
   .result-incorrect { background: #450a0a; border: 1px solid #dc2626; }
   .loading { color: #94a3b8; font-style: italic; }
   .hidden { display: none; }
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+  }
+  select:focus { outline: none; border-color: #38bdf8; }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    cursor: pointer;
+  }
+  .checkbox-label input {
+    width: auto;
+    accent-color: #38bdf8;
+  }
+  .trap-badge {
+    display: inline-block;
+    background: #422006;
+    border: 1px solid #a16207;
+    color: #fde68a;
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+  }
+  .stats-toggle {
+    background: transparent;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    margin-top: 0;
+  }
+  .stats-toggle:hover { background: #1e293b; color: #e2e8f0; }
+  .stats-row {
+    margin-top: 14px;
+  }
+  .stats-row-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    margin-bottom: 4px;
+  }
+  .stats-bar-track {
+    background: #0f172a;
+    border-radius: 6px;
+    height: 10px;
+    overflow: hidden;
+    border: 1px solid #334155;
+  }
+  .stats-bar-fill {
+    height: 100%;
+    background: #38bdf8;
+    border-radius: 6px;
+    transition: width 0.3s;
+  }
+  .stats-empty {
+    color: #64748b;
+    font-size: 0.9rem;
+    font-style: italic;
+  }
+  .reset-link {
+    display: block;
+    text-align: center;
+    margin-top: 16px;
+    font-size: 0.8rem;
+    color: #64748b;
+    cursor: pointer;
+    text-decoration: underline;
+  }
 </style>
 </head>
 <body>
@@ -135,10 +212,41 @@
     <label for="condition">Patient condition</label>
     <input id="condition" type="text" placeholder="e.g. mild fever, renal impairment, none" />
 
+    <label for="category">Category</label>
+    <select id="category">
+      <option value="Adult - Standard">Adult - Standard</option>
+      <option value="Pediatric">Pediatric</option>
+      <option value="Renal Impairment">Renal Impairment</option>
+      <option value="Hepatic Impairment">Hepatic Impairment</option>
+      <option value="Pregnancy">Pregnancy</option>
+      <option value="Other">Other</option>
+    </select>
+
+    <label for="difficulty">Difficulty</label>
+    <select id="difficulty">
+      <option value="Beginner">Beginner — single-step calculation</option>
+      <option value="Intermediate">Intermediate — includes unit conversion</option>
+      <option value="Advanced">Advanced — multi-step / dose adjustment reasoning</option>
+    </select>
+
+    <label class="checkbox-label">
+      <input type="checkbox" id="trapMode" />
+      🎯 Include a common dosing trap (test for a classic real-world error)
+    </label>
+
     <button id="generateBtn" onclick="generateQuestion()">Generate Question</button>
   </div>
 
+  <div class="card">
+    <button class="stats-toggle" onclick="toggleStats()" id="statsToggleBtn">📊 View Progress</button>
+    <div id="statsPanel" class="hidden">
+      <div id="statsContent"></div>
+      <span class="reset-link" onclick="resetProgress()">Reset all progress</span>
+    </div>
+  </div>
+
   <div class="card hidden" id="questionCard">
+    <div id="trapBadge" class="trap-badge hidden">🎯 Dosing trap scenario</div>
     <strong>Scenario:</strong>
     <div class="question-box" id="questionText"></div>
 
@@ -154,105 +262,90 @@
 </div>
 
 <script>
+  const HISTORY_KEY = "dosedrill_history";
+
   let score = 0;
   let total = 0;
   let currentQuestion = "";
+  let currentDrug = "";
+  let currentCategory = "";
+  let currentDifficulty = "";
+  let currentTrapMode = false;
 
-  async function generateQuestion() {
-    const drug = document.getElementById("drug").value.trim();
-    const age = document.getElementById("age").value.trim();
-    const weight = document.getElementById("weight").value.trim();
-    const condition = document.getElementById("condition").value.trim();
+  // ---- Progress tracking (localStorage) ----
 
-    if (!drug || !age || !weight || !condition) {
-      alert("Please fill in drug, age, weight, and condition — condition matters a lot for dosing!");
+  function loadHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveAttempt(record) {
+    const history = loadHistory();
+    history.push(record);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }
+
+  function initScoreFromHistory() {
+    const history = loadHistory();
+    total = history.length;
+    score = history.filter((h) => h.correct).length;
+    document.getElementById("score").textContent = score;
+    document.getElementById("total").textContent = total;
+  }
+
+  function toggleStats() {
+    const panel = document.getElementById("statsPanel");
+    const isHidden = panel.classList.contains("hidden");
+    if (isHidden) {
+      renderStats();
+      panel.classList.remove("hidden");
+      document.getElementById("statsToggleBtn").textContent = "📊 Hide Progress";
+    } else {
+      panel.classList.add("hidden");
+      document.getElementById("statsToggleBtn").textContent = "📊 View Progress";
+    }
+  }
+
+  function renderStats() {
+    const history = loadHistory();
+    const container = document.getElementById("statsContent");
+
+    if (history.length === 0) {
+      container.innerHTML = '<div class="stats-empty">No attempts yet — answer a few questions to see your progress here.</div>';
       return;
     }
 
-    const btn = document.getElementById("generateBtn");
-    btn.disabled = true;
-    btn.textContent = "Generating...";
+    const byCategory = {};
+    history.forEach((h) => {
+      const cat = h.category || "Other";
+      if (!byCategory[cat]) byCategory[cat] = { correct: 0, total: 0 };
+      byCategory[cat].total++;
+      if (h.correct) byCategory[cat].correct++;
+    });
 
-    try {
-      const res = await fetch("/api/dosedrill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "generate", drug, age, weight, condition }),
+    const overallCorrect = history.filter((h) => h.correct).length;
+    const overallPct = Math.round((overallCorrect / history.length) * 100);
+
+    let html = `
+      <div class="stats-row">
+        <div class="stats-row-header"><span>Overall</span><span>${overallCorrect}/${history.length} (${overallPct}%)</span></div>
+        <div class="stats-bar-track"><div class="stats-bar-fill" style="width:${overallPct}%"></div></div>
+      </div>
+    `;
+
+    Object.keys(byCategory)
+      .sort()
+      .forEach((cat) => {
+        const stats = byCategory[cat];
+        const pct = Math.round((stats.correct / stats.total) * 100);
+        html += `
+          <div class="stats-row">
+            <div class="stats-row-header"><span>${cat}</span><span>${stats.correct}/${stats.total} (${pct}%)</span></div>
+            <div class="stats-bar-track"><div class="stats-bar-fill" style="width:${pct}%"></div></div>
+          </div>
+        `;
       });
-      const data = await res.json();
 
-      if (data.error) {
-        alert("Error: " + data.error);
-        return;
-      }
-
-      currentQuestion = data.result;
-      document.getElementById("questionText").textContent = data.result;
-      document.getElementById("questionCard").classList.remove("hidden");
-      document.getElementById("resultBox").innerHTML = "";
-      document.getElementById("answer").value = "";
-      document.getElementById("tryAnotherBtn").classList.add("hidden");
-      document.getElementById("checkBtn").classList.remove("hidden");
-    } catch (err) {
-      alert("Something went wrong. Please try again.");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Generate Question";
-    }
-  }
-
-  async function checkAnswer() {
-    const studentAnswer = document.getElementById("answer").value.trim();
-    if (!studentAnswer) {
-      alert("Please type your answer first.");
-      return;
-    }
-
-    const btn = document.getElementById("checkBtn");
-    btn.disabled = true;
-    btn.textContent = "Checking...";
-
-    try {
-      const res = await fetch("/api/dosedrill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "check", question: currentQuestion, studentAnswer }),
-      });
-      const data = await res.json();
-
-      if (data.error) {
-        alert("Error: " + data.error);
-        return;
-      }
-
-      const isCorrect = data.result.trim().toUpperCase().startsWith("CORRECT");
-      total++;
-      if (isCorrect) score++;
-      document.getElementById("score").textContent = score;
-      document.getElementById("total").textContent = total;
-
-      const resultBox = document.getElementById("resultBox");
-      resultBox.className = "result-box " + (isCorrect ? "result-correct" : "result-incorrect");
-      resultBox.textContent = data.result;
-
-      document.getElementById("tryAnotherBtn").classList.remove("hidden");
-      btn.classList.add("hidden");
-    } catch (err) {
-      alert("Something went wrong. Please try again.");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Check Answer";
-    }
-  }
-
-  function resetForNewQuestion() {
-    document.getElementById("questionCard").classList.add("hidden");
-    document.getElementById("drug").value = "";
-    document.getElementById("age").value = "";
-    document.getElementById("weight").value = "";
-    document.getElementById("condition").value = "";
-    document.getElementById("checkBtn").classList.remove("hidden");
-  }
-</script>
-</body>
-</html>
