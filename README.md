@@ -14,15 +14,15 @@ DoseDrill generates realistic, tailored drug-dosing scenarios and grades your ca
 
 | Main input screen | Generated scenario |
 |---|---|
-| ![DoseDrill main screen](screenshots/screenshot-main.png) | ![Scenario in progress](screenshots/screenshot-scenario.png) |
+| ![DoseDrill main screen](screenshot-main.png) | ![Scenario in progress](screenshot-scenario.png) |
 
 | Graded answer with explanation | Dosing trap mode |
 |---|---|
-| ![Graded answer](screenshots/screenshot-graded.png) | ![Trap mode badge](screenshots/screenshot-trap-mode.png) |
+| ![Graded answer](screenshot-graded.png) | ![Trap mode badge](screenshot-trap-mode.png) |
 
 | Progress tracking |
 |---|
-| ![Progress panel](screenshots/screenshot-progress.png) |
+| ![Progress panel](screenshot-progress.png) |
 
 ---
 
