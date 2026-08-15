@@ -20,9 +20,9 @@ DoseDrill generates realistic, tailored drug-dosing scenarios and grades your ca
 |---|---|
 | ![Graded answer](screenshot-graded.png) | ![Trap mode badge](screenshot-trap-mode.png) |
 
-| Progress tracking |
-|---|
-| ![Progress panel](screenshot-progress.png) |
+| Progress tracking | Question history |
+|---|---|
+| ![Progress panel](screenshot-progress.png) | ![History panel](screenshot-history.png) |
 
 ---
 
@@ -45,6 +45,7 @@ Dosing errors are one of the most common and dangerous mistakes in clinical prac
 - 📊 **Difficulty levels** — Beginner (single-step), Intermediate (unit conversion), Advanced (multi-step / dose-adjustment reasoning).
 - 🎯 **Dosing trap mode** — optionally, the AI deliberately builds a scenario around a classic real-world dosing error (decimal slips, mg/mcg mix-ups, adult-dose-on-a-child, etc.) and reveals what the trap was after grading — training students to spot the mistakes that actually happen in practice.
 - 💾 **Persistent progress tracking** — your score and accuracy are saved on your device (via `localStorage`) across sessions, with a breakdown of accuracy *by category* so you can see exactly where you're weak.
+- 📜 **Question history** — every past scenario is saved and browsable, so you can revisit any previous question, your answer, and the AI's full explanation at any time.
 
 ## Tech stack
 
@@ -80,3 +81,4 @@ Built by sisters **Zainab Hassan** and **Ayesha Hassan** ([@Zainab-Hassan928](ht
 ## Disclaimer
 
 DoseDrill is an educational study tool only. It is **not** intended for, and must never be used for, real clinical dosing decisions. Always defer to verified clinical references and licensed professionals for actual patient care.
+
